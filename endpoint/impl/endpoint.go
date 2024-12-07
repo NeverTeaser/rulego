@@ -95,6 +95,11 @@ func (f *From) GetProcessList() []endpoint.Process {
 // true:执行To端逻辑，否则不执行
 func (f *From) ExecuteProcess(router endpoint.Router, exchange *endpoint.Exchange) bool {
 	result := true
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
 	for _, process := range f.GetProcessList() {
 		if !process(router, exchange) {
 			result = false
@@ -429,6 +434,11 @@ func (e *BaseEndpoint) AddInterceptors(interceptors ...endpoint.Process) {
 
 func (e *BaseEndpoint) DoProcess(baseCtx context.Context, router endpoint.Router, exchange *endpoint.Exchange) {
 	//创建上下文
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered from panic:", r)
+		}
+	}()
 	ctx := e.createContext(baseCtx, router, exchange)
 	for _, item := range e.interceptors {
 		//执行全局拦截器
@@ -495,7 +505,7 @@ func (r *ExecutorFactory) Register(name string, executor endpoint.Executor) {
 // New 根据类型创建to端执行器实例
 func (r *ExecutorFactory) New(name string) (endpoint.Executor, bool) {
 	r.RLock()
-	r.RUnlock()
+	defer r.RUnlock()
 	h, ok := r.executors[name]
 	if ok {
 		return h.New(), true

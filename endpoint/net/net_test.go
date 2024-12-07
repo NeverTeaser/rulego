@@ -88,7 +88,7 @@ func TestRouterId(t *testing.T) {
 func TestNetEndpoint(t *testing.T) {
 	var wg sync.WaitGroup
 
-	for _, cfg := range []*Config{udpConnCfg, tcpConnCfg} {
+	for _, cfg := range []*Config{tcpConnCfg, udpConnCfg} {
 
 		//发送消息
 		metaData := types.BuildMetadata(make(map[string]string))
@@ -269,7 +269,6 @@ func startServer(t *testing.T, connConfig *Config, stop chan struct{}, wg *sync.
 
 		exchange.In.GetMsg().Type = "TEST_MSG_TYPE2"
 		receiveData := exchange.In.GetMsg().Data
-		fmt.Println("data:", string(receiveData))
 
 		if receiveData != msgContent1 && receiveData != msgContent2 && receiveData != msgContent3 && receiveData != msgContent4 && receiveData != msgContent5 {
 			t.Fatalf("receive data:%s,expect data:%s,%s,%s,%s,%s", receiveData, msgContent1, msgContent2, msgContent3, msgContent4, msgContent5)

@@ -42,8 +42,11 @@ import (
 	"net/textproto"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pion/transport/v2/udp"
 
 	"github.com/rulego/rulego/api/types"
 	"github.com/rulego/rulego/api/types/endpoint"
@@ -254,7 +257,7 @@ func (ep *Net) Type() string {
 
 func (ep *Net) New() types.Node {
 	return &Net{
-		Config: Config{Protocol: "tcp", ReadTimeout: 60, Server: ":6335"},
+		Config: ep.Config,
 	}
 }
 
@@ -343,80 +346,55 @@ func (ep *Net) Start() error {
 	var err error
 	// 根据配置的协议和地址，创建一个服务器监听器
 	switch ep.Config.Protocol {
+	case "udp", "udp4", "udp6":
+		host, port, err := net.SplitHostPort(ep.Config.Server)
+		if err != nil {
+			return err
+		}
+		parsePort, err := strconv.Atoi(port)
+		if err != nil {
+			return err
+		}
+		if ep.listener, err = udp.Listen(ep.Config.Protocol, &net.UDPAddr{
+			IP:   net.ParseIP(host),
+			Port: parsePort,
+		}); err != nil {
+			return err
+		}
 
 	case "tcp", "tcp4", "tcp6", "unix", "unixpacket":
-		ep.listener, err = net.Listen(ep.Config.Protocol, ep.Config.Server)
-		if err != nil {
+		if ep.listener, err = net.Listen(ep.Config.Protocol, ep.Config.Server); err != nil {
 			return err
 		}
-		ep.Printf("started TCP server on %s", ep.Config.Server)
-		go ep.acceptTCPConnections()
-	case "udp", "udp4", "udp6":
-		err = ep.listenUDP()
-		if err != nil {
-			return err
-		}
-		ep.Printf("started UDP server on %s", ep.Config.Server)
-		h := UDPHandler{
-			endpoint: ep,
-			config:   ep.Config,
-		}
-		ep.submitTask(h.handler)
 	default:
 		return fmt.Errorf("unsupported protocol: %s", ep.Config.Protocol)
 	}
-	return nil
-}
 
-func (ep *Net) listenUDP() error {
-	udpAddr, err := net.ResolveUDPAddr(ep.Config.Protocol, ep.Config.Server)
-	if err != nil {
-		return err
-	}
-	ep.udpConn, err = net.ListenUDP(ep.Config.Protocol, udpAddr)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ep *Net) acceptTCPConnections() {
-	// 循环接受客户端的连接请求
-	for {
-		// 从监听器中获取一个客户端连接，返回连接对象和错误信息
-		conn, err := ep.listener.Accept()
-		if err != nil {
-			if opError, ok := err.(*net.OpError); ok && opError.Err == net.ErrClosed {
-				ep.Printf("net endpoint stop")
-				return
-				//return endpoint.ErrServerStopped
-			} else {
-				ep.Printf("accept:", err)
-				continue
+	// 打印服务器启动的信息
+	ep.Printf("started  %s server on %v", ep.Config.Protocol, ep.Config.Server)
+	go func() {
+		// 循环接受客户端的连接请求
+		defer ep.listener.Close()
+		for {
+			// 从监听器中获取一个客户端连接，返回连接对象和错误信息
+			conn, err := ep.listener.Accept()
+			if err != nil {
+				if opError, ok := err.(*net.OpError); ok && opError.Err == net.ErrClosed {
+					ep.Printf("net endpoint stop")
+					return
+					//return endpoint.ErrServerStopped
+				} else {
+					ep.Printf("accept: %v", err)
+					continue
+				}
 			}
+			// 打印客户端连接的信息
+			ep.Printf("new connection from: %v", conn.RemoteAddr().String())
+			// 启动一个协端处理客户端连接
+			go ep.handler(conn)
 		}
-		// 打印客户端连接的信息
-		//ep.Printf("new connection from:", conn.RemoteAddr().String())
-		h := TcpHandler{
-			endpoint: ep,
-			conn:     conn,
-			config:   ep.Config,
-		}
-		// 启动一个协端处理客户端连接
-		ep.submitTask(h.handler)
-		//go ep.handler(conn)
-	}
-}
-
-func (ep *Net) submitTask(fn func()) {
-	if ep.RuleConfig.Pool != nil {
-		err := ep.RuleConfig.Pool.Submit(fn)
-		if err != nil {
-			ep.Printf("redis consumer handler err :%v", err)
-		}
-	} else {
-		go fn()
-	}
+	}()
+	return nil
 }
 
 func (ep *Net) Printf(format string, v ...interface{}) {
@@ -454,8 +432,6 @@ type TcpHandler struct {
 	conn net.Conn
 	// 创建一个读取超时定时器，用于设置读取数据的超时时间，可以为0表示不设置超时
 	readTimeoutTimer *time.Timer
-	//读取数据配置
-	config Config
 }
 
 func (x *TcpHandler) handler() {
@@ -486,9 +462,11 @@ func (x *TcpHandler) handler() {
 			}
 		}
 
+		if x.endpoint.closed || x.conn == nil {
+			break
+		}
 		// 读取一行数据，直到遇到\n或者\t\n为止
 		data, _, err := reader.ReadLine()
-
 		if err != nil && err.Error() != os.ErrDeadlineExceeded.Error() {
 			if e, ok := err.(*net.OpError); ok {
 				if e.Err != os.ErrDeadlineExceeded {
@@ -515,6 +493,9 @@ func (x *TcpHandler) handler() {
 		from := ""
 		if x.conn.RemoteAddr() != nil {
 			from = x.conn.RemoteAddr().String()
+		}
+		if len(data) == 0 {
+			x.onDisconnect()
 		}
 		// 创建一个交换对象，用于存储输入和输出的消息
 		exchange := &endpoint.Exchange{
@@ -554,72 +535,5 @@ func (x *TcpHandler) onDisconnect() {
 	}
 	if x.conn.RemoteAddr() != nil {
 		x.endpoint.Printf("onDisconnect:" + x.conn.RemoteAddr().String())
-	}
-}
-
-type UDPHandler struct {
-	endpoint *Net
-	// 创建一个读取超时定时器，用于设置读取数据的超时时间，可以为0表示不设置超时
-	readTimeoutTimer *time.Timer
-	//读取数据配置
-	config Config
-}
-
-func (x *UDPHandler) handler() {
-	buffer := make([]byte, BufferSize)
-	for {
-		if x.endpoint.udpConn == nil || x.endpoint.closed {
-			break
-		}
-		n, addr, err := x.endpoint.udpConn.ReadFromUDP(buffer)
-		if err != nil {
-			time.Sleep(time.Second)
-			if x.endpoint.closed {
-				break
-			}
-			err = x.endpoint.listenUDP()
-			if err != nil {
-				x.endpoint.Printf("Error listenUDP: %v", err)
-				time.Sleep(time.Second)
-			}
-			continue
-		}
-		msgBuffer := buffer[:n]
-		if string(msgBuffer) == PingData {
-			continue
-		}
-		from := ""
-		if addr != nil {
-			from = addr.String()
-		}
-		// 编码处理
-		encodedMessage := x.endpoint.encode(msgBuffer)
-
-		// 创建一个交换对象，用于存储输入和输出的消息
-		exchange := &endpoint.Exchange{
-			In: &RequestMessage{
-				conn: x.endpoint.udpConn,
-				body: encodedMessage,
-				from: from,
-			},
-			Out: &ResponseMessage{
-				log: func(format string, v ...interface{}) {
-					x.endpoint.Printf(format, v...)
-				},
-				conn:    x.endpoint.udpConn,
-				udpAddr: addr,
-				from:    from,
-			}}
-
-		msg := exchange.In.GetMsg()
-		// 把客户端连接的地址放到msg元数据中
-		msg.Metadata.PutValue(RemoteAddrKey, from)
-
-		// 匹配符合的路由，处理消息
-		for _, v := range x.endpoint.routers {
-			if v.regexp == nil || v.regexp.Match(encodedMessage) {
-				x.endpoint.DoProcess(context.Background(), v.router, exchange)
-			}
-		}
 	}
 }
