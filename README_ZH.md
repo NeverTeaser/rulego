@@ -89,11 +89,6 @@ go get github.com/rulego/rulego
 go get gitee.com/rulego/rulego
 #or 
 go get gitcode.com/rulego/rulego
-
-如果遇到无法下载，在go.mod文件增加以下指令：
-replace github.com/rulego/rulego => gitee.com/rulego/rulego
-#or
-replace github.com/rulego/rulego => gitcode.com/rulego/rulego
 ```
 ## 使用
 
@@ -178,6 +173,11 @@ ruleEngine, err := rulego.New("rule01", []byte(ruleFile), rulego.WithConfig(conf
 ### Endpoint组件
 - [Endpoint组件](https://rulego.cc/pages/691dd3/)
 - [Endpoint DSL](https://rulego.cc/pages/390ad7/)
+
+### RuleGo-Server
+我们提供了一个基于`RuleGo`的开箱即用规则引擎服务：[RuleGo-Server](examples/server) ，
+以及配套的前端可视化编辑器：[RuleGo-Editor](https://editor.rulego.cc/) 。
+RuleGo-Server 可以作为一个独立部署的中间件，提供规则链管理、调试、部署，以及节点组件管理等操作。
 
 ## 性能
 `RuleGo` 大部分工作都在初始化时完成，执行规则链时几乎不会额外增加系统开销，资源占用极低，特别适合在边缘服务器运行。

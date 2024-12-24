@@ -2,26 +2,16 @@
 
 [English](README.md)| 中文
 
-该示例工程演示如何把RuleGo作为一个独立运行的规则引擎服务，该工程也是一个开发RuleGo应用的脚手架。你可以基于该工程进行二次开发，也可以直接下载可执行[二进制文件](https://github.com/rulego/rulego/releases)。
+`RuleGo-Server`一个独立运行的开箱即用规则引擎服务，该工程也是一个开发RuleGo应用的脚手架。你可以基于该工程进行二次开发，也可以直接下载可执行[二进制文件](https://github.com/rulego/rulego/releases)。
 
-前端在线调试界面：[example.rulego.cc](https://example.rulego.cc/) 。
+可视化编辑器：[RuleGo-Editor](https://editor.rulego.cc/) ，配置该工程HTTP API，可以对规则链管理和调试。
 
-另外规则链编辑器工具：[RuleGo-Editor](https://editor.rulego.cc/) ，配置该工程HTTP API，可以对规则链管理和调试。
-
-该工程提供以下功能：
-
-* 执行规则链并得到执行结果API
-* 往规则链上报数据API，不关注执行结果。
-* 创建规则链API。
-* 更新规则链API。
-* 获取节点调试日志API。
-* 执行规则链并得到执行结果API。
-* 实时推送执行日志。
-* 保存执行快照。
-* 组件列表API。
-* 订阅MQTT数据，并根据根规则链定义交给规则引擎处理。
+- 体验地址1：[http://8.134.32.225:9090/editor/](http://8.134.32.225:9090/editor/)
+- 体验地址2：[http://8.134.32.225:9090/ui/](http://8.134.32.225:9090/ui/)
 
 ## HTTP API
+
+[API 文档](https://apifox.com/apidoc/shared-d17a63fe-2201-4e37-89fb-f2e8c1cbaf40/234016936e0)
 
 * 获取所有组件列表
     - GET /api/v1/components
@@ -80,6 +70,7 @@ go build -tags with_extend .
 - 注册AI扩展组件[rulego-components-ai](https://github.com/rulego/rulego-components-ai) ，使用`with_ai`tag进行编译
 - 注册CI/CD扩展组件[rulego-components-ci](https://github.com/rulego/rulego-components-ci) ，使用`with_ci`tag进行编译
 - 注册IoT扩展组件[rulego-components-iot](https://github.com/rulego/rulego-components-iot) ，使用`with_iot`tag进行编译
+- 注册ETL扩展组件[rulego-components-etl](https://github.com/rulego/rulego-components-etl) ，使用`with_etl`tag进行编译
 
 如果需要同时引入多个扩展组件库，可以使用`go build -tags "with_extend,with_ai,with_ci,with_iot" .` tag进行编译。
 
@@ -94,7 +85,15 @@ go build -tags with_extend .
 ```shell
 nohup ./server -c="./config.conf" >> console.log &
 ```
+## RuleGo-Editor
+RuleGo-Editor 是 RuleGo-Server 的UI界面，可以对规则链进行可视化管理，调试，部署等。
 
+使用步骤：
+- 解压下载好的`editor.zip`到当前目录，打开浏览器访问`http://localhost:9090/` ，即可访问RuleGo-Editor。
+- 可以通过`config.conf`的 resource_mapping 配置修改rulego-editor目录。
+- 可以通过`editor/config/config.js`的 baseUrl 配置修改rulego-editor后端api地址。
+
+> RuleGo-Editor仅用于学习，商用请向我们购买授权。Email：rulego@outlook.com
 ## 配置文件参数
 ```ini
 # 数据目录
@@ -111,6 +110,8 @@ default_username = admin
 debug = true
 # 最大节点日志大小，默认40
 max_node_log_size =40
+# 资源映射，支持通配符，多个映射用逗号分隔，格式：/url/*filepath=/path/to/file
+resource_mapping = /editor/*filepath=./editor,/images/*filepath=./editor/images
 # 节点池文件，规则链json格式，示例：./node_pool.json
 node_pool_file=./node_pool.json
 

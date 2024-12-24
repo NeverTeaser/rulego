@@ -2,28 +2,17 @@
 
 English| [中文](README_ZH.md)
 
-This example project demonstrates how to use RuleGo as an independently running rule engine service. This project also serves as a scaffold for developing RuleGo applications. You can develop further based on this project, or you can directly download the executable [releases](https://github.com/rulego/rulego/releases).
+`RuleGo-Server` is a ready-to-use standalone rule engine service, and this project is also a scaffold for developing RuleGo applications. You can perform secondary development based on this project, or you can directly download the executable [binary files](https://github.com/rulego/rulego/releases).
 
-Here is the translation:
+Visual Editor:[RuleGo-Editor](https://editor.rulego.cc/), configure the HTTP API of this project to manage and debug rule chains.
 
-Front-end online debugging interface: [example.rulego.cc](https://example.rulego.cc/).
+- Experience Address 1: [http://8.134.32.225:9090/editor/](http://8.134.32.225:9090/editor/)
+- Experience Address 2: [http://8.134.32.225:9090/ui/](http://8.134.32.225:9090/ui/)
 
-Additionally, the rule chain editor tool: [RuleGo-Editor](https://editor.rulego.cc/), configure the project's HTTP API for rule chain management and debugging.
-
-The following features are provided:
-
-* Execute the rule chain and get the execution result API.
-* Report data to the rule chain API, without focusing on the execution result.
-* Create rule chain API.
-* Update rule chain API.
-* Get node debugging log API.
-* Execute the rule chain and get the execution result API.
-* Real-time push execution log.
-* Save execution snapshot.
-* Component list API.
-* Subscribe to MQTT data and hand it over to the rule engine for processing according to the root rule chain definition.
 
 ## HTTP API
+
+[API Doc](https://apifox.com/apidoc/shared-d17a63fe-2201-4e37-89fb-f2e8c1cbaf40/234016936e0)
 
 * Get all component lists
   - GET /api/v1/components
@@ -84,6 +73,7 @@ Other extension component library tags:
 - To register the AI extension component [rulego-components-ai](https://github.com/rulego/rulego-components-ai), compile with the `with_ai` tag.
 - To register the CI/CD extension component [rulego-components-ci](https://github.com/rulego/rulego-components-ci), compile with the `with_ci` tag.
 - To register the IoT extension component [rulego-components-iot](https://github.com/rulego/rulego-components-iot), compile with the `with_iot` tag.
+- To register the ETL extension component [rulego-components-etl](https://github.com/rulego/rulego-components-etl), compile with the `with_etl` tag.
 
 If you need to include multiple extension component libraries at the same time, you can compile with the `go build -tags "with_extend,with_ai,with_ci,with_iot" .` tag.
 
@@ -98,6 +88,15 @@ Start in the background
 ```shell
 nohup ./server -c="./config.conf" >> console.log &
 ```
+## RuleGo-Editor
+RuleGo-Editor is the UI interface of RuleGo-Server, which allows for the visual management, debugging, and deployment of rule chains.
+
+Usage steps:
+- Unzip the downloaded `editor.zip` to the current directory and visit `http://localhost:9090/` in your browser to access RuleGo-Editor.
+- - The directory for rulego-editor can be modified by configuring the `resource_mapping` in `config.conf`.
+- The backend API address for rulego-editor can be modified by configuring the `baseUrl` in `editor/config/config.js`.
+
+>RuleGo-Editor is for learning purposes only. For commercial use, please purchase a license from us. Email: rulego@outlook.com
 
 ## Configuration file parameters
 ```ini
@@ -115,6 +114,8 @@ default_username = admin
 debug = true
 # Maximum node log size, default 40
 max_node_log_size =40
+# Resource mapping
+resource_mapping = /editor/*filepath=./editor,/images/*filepath=./editor/images
 # Node pool file
 node_pool_file=./node_pool.json
 
